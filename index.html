@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>My Casino</title>
+<style>
+  body { font-family: system-ui; max-width: 420px; margin: 40px auto; padding: 20px; background: #111; color: white; }
+  input, button { padding: 10px; margin: 6px 0; width: 100%; box-sizing: border-box; border-radius: 6px; border: 1px solid #333; background: #222; color: white; }
+  button { background: #22c55e; color: white; border: none; cursor: pointer; font-weight: bold; font-size: 16px; }
+  button:hover { background: #16a34a; }
+  #result { background: #222; padding: 12px; margin-top: 16px; white-space: pre-wrap; border-radius: 6px; font-family: monospace; }
+</style>
+</head>
+<body>
+<h2>🎲 My Casino</h2>
+<input id="wallet" placeholder="Твой кошелёк" value="demo_player_1">
+<input id="clientSeed" placeholder="Client seed" value="my_seed_123">
+<input id="bet" type="number" value="10" min="1">
+<input id="target" type="number" value="50" min="2" max="98">
+<label><input type="checkbox" id="betOver" checked> Ставка на «больше»</label>
+<button onclick="play()">Играть</button>
+<div id="result">Результат появится здесь.</div>
+
+<script>
+// Эту ссылку мы заменим, когда сделаем сервер
+const API = 'https://YOUR_WORKER.workers.dev';
+
+async function play() {
+  const body = {
+    wallet: document.getElementById('wallet').value,
+    clientSeed: document.getElementById('clientSeed').value,
+    betAmount: Number(document.getElementById('bet').value),
+    target: Number(document.getElementById('target').value),
+    betOver: document.getElementById('betOver').checked,
+  };
+  
+  document.getElementById('result').textContent = 'Загрузка...';
+  
+  try {
+    const res = await fetch(`${API}/api/dice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    document.getElementById('result').textContent = 'Ошибка: сервер пока не подключен. ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
