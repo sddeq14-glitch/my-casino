@@ -34,11 +34,18 @@ async function play() {
   const resultDiv = document.getElementById('result');
   resultDiv.textContent = 'Загрузка...';
   
+  const formData = new URLSearchParams();
+  formData.append('wallet', wallet);
+  formData.append('clientSeed', clientSeed);
+  formData.append('betAmount', betAmount);
+  formData.append('target', target);
+  formData.append('betOver', betOver);
+
   try {
     const res = await fetch(`${API}/dice`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wallet, clientSeed, betAmount, target, betOver }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
     });
     
     const text = await res.text();
@@ -46,7 +53,7 @@ async function play() {
       const data = JSON.parse(text);
       resultDiv.textContent = JSON.stringify(data, null, 2);
     } catch (e) {
-      resultDiv.textContent = 'Ответ сервера (не JSON): ' + text;
+      resultDiv.textContent = 'Ответ сервера: ' + text;
     }
   } catch (e) {
     resultDiv.textContent = 'Ошибка сети: ' + e.message;
