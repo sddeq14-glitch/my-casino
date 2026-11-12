@@ -32,7 +32,16 @@ export default async function handler(request, response) {
   if (request.method === 'OPTIONS') return response.status(200).end();
   if (request.method !== 'POST') return response.status(405).json({ error: 'Method not allowed' });
 
-  const { wallet, clientSeed, betAmount, target, betOver } = request.body;
+  let data = request.body;
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch (e) {
+      return response.status(400).json({ error: 'Invalid JSON format' });
+    }
+  }
+
+  const { wallet, clientSeed, betAmount, target, betOver } = data;
 
   if (!wallet || !clientSeed) return response.status(400).json({ error: 'wallet и clientSeed обязательны' });
   if (betAmount <= 0) return response.status(400).json({ error: 'ставка > 0' });
@@ -65,4 +74,4 @@ export default async function handler(request, response) {
   } catch (e) {
     return response.status(500).json({ error: e.message });
   }
-    }
+                                                                          }
