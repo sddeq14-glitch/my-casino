@@ -22,8 +22,8 @@
 <div id="result">Результат появится здесь.</div>
 
 <script>
-// Эту ссылку мы заменим, когда сделаем сервер
-const API = 'https://silent-disk-f70e.sddeq14.workers.dev';
+// Твоя ссылка на Vercel API
+const API = 'https://my-casino-xi.vercel.app/api';
 
 async function play() {
   const body = {
@@ -37,7 +37,7 @@ async function play() {
   document.getElementById('result').textContent = 'Загрузка...';
   
   try {
-    const res = await fetch(`${API}/api/dice`, {
+    const res = await fetch(`${API}/dice`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -45,7 +45,7 @@ async function play() {
     const data = await res.json();
     document.getElementById('result').textContent = JSON.stringify(data, null, 2);
   } catch (e) {
-    document.getElementById('result').textContent = 'Ошибка: сервер пока не подключен. ' + e.message;
+    document.getElementById('result').textContent = 'Ошибка: ' + e.message;
   }
 }
 </script>
