@@ -10,68 +10,49 @@ async function sb(path, method = 'GET', body = null) {
   return res.json();
 }
 
-async function hmacSha256(keyHex, message) {
-  const enc = new TextEncoder();
-  const keyBytes = new Uint8Array(keyHex.length / 2);
-  for (let i = 0; i < keyBytes.length; i++) keyBytes[i] = parseInt(keyHex.substr(i * 2, 2), 16);
-  const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
-  return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
+export default async function handler(req, res) {
+  // Настройка CORS, чтобы браузер не блокировал
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-function randomHex(bytes = 32) {
-  const arr = crypto.getRandomValues(new Uint8Array(bytes));
-  return [...arr].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-export default async function handler(request, response) {
-  response.setHeader('Access-Control-Allow-Origin', '*');
-  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (request.method === 'OPTIONS') return response.status(200).end();
-  if (request.method !== 'POST') return response.status(405).json({ error: 'Method not allowed' });
-
-  let data = request.body;
-  if (typeof data === 'string') {
-    try {
-      data = JSON.parse(data);
-    } catch (e) {
-      return response.status(400).json({ error: 'Invalid JSON format' });
-    }
-  }
-
-  const { wallet, clientSeed, betAmount, target, betOver } = data;
-
-  if (!wallet || !clientSeed) return response.status(400).json({ error: 'wallet и clientSeed обязательны' });
-  if (betAmount <= 0) return response.status(400).json({ error: 'ставка > 0' });
-  if (target < 2 || target > 98) return response.status(400).json({ error: 'target 2..98' });
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
+    // Vercel сам парсит body, если это JSON
+    const { wallet, clientSeed, betAmount, target, betOver } = req.body;
+
+    if (!wallet) return res.status(400).json({ error: 'Нет кошелька' });
+
     let players = await sb(`players?wallet=eq.${encodeURIComponent(wallet)}`);
     let player = players[0];
 
+    // Если игрока нет, создаем ему баланс 1000
     if (!player) {
-      await sb('players', 'POST', { wallet, balance: 1000, server_seed: randomHex(32), nonce: 0 });
+      await sb('players', 'POST', { wallet, balance: 1000, server_seed: 'seed123', nonce: 0 });
       players = await sb(`players?wallet=eq.${encodeURIComponent(wallet)}`);
       player = players[0];
     }
 
-    const serverSeed = player.server_seed;
-    const nonce = (player.nonce || 0) + 1;
-    const hash = await hmacSha256(serverSeed, `${clientSeed}:${nonce}`);
-    const roll = (parseInt(hash.slice(0, 8), 16) / 0xFFFFFFFF) * 100;
-
+    // Честный рандом от 0 до 100
+    const roll = Math.random() * 100;
     const win = betOver ? roll > target : roll < target;
-    const payout = win ? betAmount * (98 / (betOver ? 100 - target : target)) : 0;
-    const newBalance = Number(player.balance) - betAmount + payout;
+    
+    // Выплата (x1.9, чтобы у казино был свой процент)
+    const payout = win ? Number(betAmount) * 1.9 : 0;
+    const newBalance = Number(player.balance) - Number(betAmount) + payout;
 
-    await sb(`players?wallet=eq.${encodeURIComponent(wallet)}`, 'PATCH', { balance: newBalance, nonce });
+    // Сохраняем новый баланс
+    await sb(`players?wallet=eq.${encodeURIComponent(wallet)}`, 'PATCH', { balance: newBalance });
 
-    return response.status(200).json({
-      roll: roll.toFixed(4), win, payout: payout.toFixed(8), balance: newBalance.toFixed(8), nonce,
+    return res.status(200).json({
+      roll: roll.toFixed(2), 
+      win, 
+      payout, 
+      balance: newBalance
     });
-  } catch (e) {
-    return response.status(500).json({ error: e.message });
+  } catch (err) {
+    return res.status(500).json({ error: 'Ошибка сервера: ' + err.message });
   }
-                                                                          }
+}
